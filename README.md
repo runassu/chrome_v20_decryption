@@ -1,5 +1,5 @@
-Chrome cookie encrypted_value v20 use `app_bound_encrypted_key` in Local State file. To decrypt this, we first need to decrypt `app_bound_encrypted_key` with the SYSTEM DPAPI, followed by the user DPAPI. In other brand browsers, we can directly get the 32-bytes AES key to decrypt encrypted cookies. Chrome requires some additional steps.
-ref:
+Chrome cookie encrypted_value v20 use `app_bound_encrypted_key` in Local State file. To decrypt this, we first need to decrypt `app_bound_encrypted_key` with the SYSTEM DPAPI, followed by the user DPAPI. In other brand browsers, we can directly get the 32-bytes AES key to decrypt encrypted cookies. Chrome requires some additional steps.  
+ref:  
 [https://github.com/chromium/chromium/blob/35afbc6f6b81d51d697ea615364a972832dab418/chrome/elevation_service/elevator.cc#L199](url)
 
 For example, after the double step DPAPI decryption, the resulting value comes with Chrome path, then 1-byte flag 0x01, 12-bytes IV, 32-bytes ciphertext, 16-bytes TAG.
@@ -12,9 +12,9 @@ For example, after the double step DPAPI decryption, the resulting value comes w
 00000050  7b 50 e6 7f 4d 5c 34 3f e6 ee d9 43 58 91 9e d2  |{Pæ.M\4?æîÙCX..Ò|
 00000060  3a d8 96 30                                      |:Ø.0|
 ```
-IV: `ca bf 17 e5 f2 f4 47 b0 e8 1b 64 1b`
-ciphertext: `f2 7c 22 49 66 e2 5f fc ed d2 e0 cf c0 4e 1f 21 f6 1b c2 da a2 eb 6f 53 2c 47 d3 9e 7b 50 e6 7f `
-TAG: `4d 5c 34 3f e6 ee d9 43 58 91 9e d2 3a d8 96 30`
+IV: `ca bf 17 e5 f2 f4 47 b0 e8 1b 64 1b`  
+ciphertext: `f2 7c 22 49 66 e2 5f fc ed d2 e0 cf c0 4e 1f 21 f6 1b c2 da a2 eb 6f 53 2c 47 d3 9e 7b 50 e6 7f `  
+TAG: `4d 5c 34 3f e6 ee d9 43 58 91 9e d2 3a d8 96 30`  
 We can decrypt it using AES-256-GCM, with the key hardcoded in `elevation_service.exe`:
 ```
 01455184   B3 1C 6E 24 1A C8 46 72  8D A9 C1 FA C4 93 66 51
