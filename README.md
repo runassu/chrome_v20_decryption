@@ -1,6 +1,6 @@
 Chrome cookie encrypted_value v20 use `app_bound_encrypted_key` in Local State file. To decrypt this, we first need to decrypt `app_bound_encrypted_key` with the SYSTEM DPAPI, followed by the user DPAPI. In other brand browsers, we can directly get the 32-bytes AES key to decrypt encrypted cookies. Chrome requires some additional steps.  
 ref:  
-[https://github.com/chromium/chromium/blob/35afbc6f6b81d51d697ea615364a972832dab418/chrome/elevation_service/elevator.cc#L199]([url](https://github.com/chromium/chromium/blob/35afbc6f6b81d51d697ea615364a972832dab418/chrome/elevation_service/elevator.cc#L199))
+[https://github.com/chromium/chromium/blob/35afbc6f6b81d51d697ea615364a972832dab418/chrome/elevation_service/elevator.cc#L199](https://github.com/chromium/chromium/blob/35afbc6f6b81d51d697ea615364a972832dab418/chrome/elevation_service/elevator.cc#L199)
 
 For example, after the double step DPAPI decryption, the resulting value comes with Chrome path, then 1-byte flag 0x01, 12-bytes IV, 32-bytes ciphertext, 16-bytes TAG.
 ```
