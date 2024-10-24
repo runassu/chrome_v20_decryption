@@ -70,7 +70,7 @@ print(binascii.b2a_base64(key))
 # fetch all v20 cookies
 con = sqlite3.connect(pathlib.Path(cookie_db_path).as_uri() + "?mode=ro", uri=True)
 cur = con.cursor()
-r = cur.execute("SELECT host_key, name, encrypted_value from cookies;")
+r = cur.execute("SELECT host_key, name, CAST(encrypted_value AS BLOB) from cookies;")
 cookies = cur.fetchall()
 cookies_v20 = [c for c in cookies if c[2][:3] == b"v20"]
 con.close()
@@ -83,8 +83,8 @@ def decrypt_cookie_v20(encrypted_value):
     encrypted_cookie = encrypted_value[3+12:-16]
     cookie_tag = encrypted_value[-16:]
     cookie_cipher = AES.new(key, AES.MODE_GCM, nonce=cookie_iv)
-    decrypted_cookie = cookie_cipher.decrypt_and_verify(encrypted_cookie, cookie_tag).decode()
-    return decrypted_cookie
+    decrypted_cookie = cookie_cipher.decrypt_and_verify(encrypted_cookie, cookie_tag)
+    return decrypted_cookie[32:].decode('utf-8')
 
 for c in cookies_v20:
     print(c[0], c[1], decrypt_cookie_v20(c[2]))
