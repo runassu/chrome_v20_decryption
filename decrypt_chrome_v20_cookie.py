@@ -1,6 +1,20 @@
+import ctypes
+import sys
+
+def is_admin():
+    try:
+        return ctypes.windll.shell32.IsUserAnAdmin() != 0
+    except:
+        return False
+
+if is_admin():
+    pass
+else:
+    input("This script needs to run as administrator, press Enter to continue")
+    ctypes.windll.shell32.ShellExecuteW(None, "runas", sys.executable, " ".join([sys.argv[0]] + sys.argv[1:]), None, 1)
+
 import os
 import json
-import sys
 import binascii
 from pypsexec.client import Client
 from Crypto.Cipher import AES, ChaCha20_Poly1305
@@ -95,3 +109,5 @@ def decrypt_cookie_v20(encrypted_value):
 
 for c in cookies_v20:
     print(c[0], c[1], decrypt_cookie_v20(c[2]))
+
+input()

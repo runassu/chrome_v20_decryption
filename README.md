@@ -1,3 +1,4 @@
+**This PoC script needs to run as administrator**  
 **Update**  
 In Chrome 133+, the encryption algorithm in `elevation_service.exe` has changed to `ChaCha20_Poly1305`  
 Key hardcoded in `elevation_service.exe`:
