@@ -12,6 +12,7 @@ if is_admin():
 else:
     input("This script needs to run as administrator, press Enter to continue")
     ctypes.windll.shell32.ShellExecuteW(None, "runas", sys.executable, " ".join([sys.argv[0]] + sys.argv[1:]), None, 1)
+    exit()
 
 import os
 import json
