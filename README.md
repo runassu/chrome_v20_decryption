@@ -1,5 +1,9 @@
 **This PoC script needs to run as administrator**  
-**Update**  
+**Update for 137+**
+In Chrome 137+, the encryption algorithm in `elevation_service.exe` reverted to `AES-256-GCM`  
+The AES Key will be stored in the DPAPI-decrypted blob located after the flag `\x03` now, and required decryption with CNG using a key from KSP
+
+**Update for 133+**  
 In Chrome 133+, the encryption algorithm in `elevation_service.exe` has changed to `ChaCha20_Poly1305`  
 Key hardcoded in `elevation_service.exe`:
 ```
