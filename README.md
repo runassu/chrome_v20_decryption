@@ -1,4 +1,7 @@
 **This PoC script needs to run as administrator**  
+**Update for 157+**
+New CNG key name `Google Chromekey2` and new XOR key.
+
 **Update for 137+**
 In Chrome 137+, the encryption algorithm in `elevation_service.exe` reverted to `AES-256-GCM`  
 The AES Key will be stored in the DPAPI-decrypted blob located after the flag `\x03` now, and required decryption with CNG using a key from KSP

